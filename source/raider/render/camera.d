@@ -2,7 +2,7 @@ module raider.render.camera;
 
 import derelict.opengl3.gl;
 import std.math;
-import raider.math.all;
+import raider.math;
 
 /*
  * Invisible floating eye.

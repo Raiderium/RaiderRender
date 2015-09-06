@@ -1,6 +1,6 @@
-﻿module raider.render.model;
+module raider.render.model;
 
-import raider.math.all;
+import raider.math;
 import raider.tools.array;
 import raider.tools.reference;
 import raider.render.armature;

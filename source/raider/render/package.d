@@ -1,4 +1,4 @@
-﻿module raider.render.all;
+﻿module raider.render;
 
 public
 {
