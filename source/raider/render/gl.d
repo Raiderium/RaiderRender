@@ -1,77 +1,114 @@
-﻿///Provides the OpenGL and DerelictSFML2 Window/System APIs
+﻿///Provides the OpenGL API
 module raider.render.gl;
 
+import raider.tools.reference;
+import std.exception;
+
 public import derelict.opengl3.gl;
-public import derelict.sfml2.window;
-public import derelict.sfml2.system;
 import std.stdio;
+
+__gshared GL gl;
 
 shared static this()
 {
-	DerelictGL.load();
-	DerelictSFML2System.load();
-	DerelictSFML2Window.load();
-	
-	//Load GL versions beyond 1.1 (requires context)
-	auto context = sfContext_create();
-	DerelictGL.reload();
-	sfContext_destroy(context);
+	gl = new GL();
 }
 
-void printGLError(string source)
+private final class GL
 {
-	int errorcode = glGetError();
-	string errorstring;
-	if(errorcode)
+	GLVersion version_;
+	int colourBits, stencilBits, depthBits;
+	ubyte doubleBuffered;
+	int textureUnits;
+
+	this()
 	{
-		switch(errorcode)
+		//Link to OpenGL.
+		DerelictGL.load();
+		auto bootstrap = New!Context(); //A context is required to get versions above 1.1.
+		version_ = DerelictGL.reload(GLVersion.None, GLVersion.GL31);
+
+		//1.0
+		int r, g, b, a;
+		glGetIntegerv(GL_RED_BITS, &r);
+		glGetIntegerv(GL_GREEN_BITS, &g);
+		glGetIntegerv(GL_BLUE_BITS, &b);
+		glGetIntegerv(GL_ALPHA_BITS, &a);
+		colourBits = r + g + b + a;
+		glGetIntegerv(GL_STENCIL_BITS, &stencilBits);
+		glGetIntegerv(GL_DEPTH_BITS, &depthBits);
+		glGetBooleanv(GL_DOUBLEBUFFER, &doubleBuffered);
+		enforce(colourBits == 24 || colourBits == 32);
+		enforce(stencilBits >= 8);
+		enforce(depthBits >= 24);
+		enforce(doubleBuffered);
+
+		//1.3
+		if(version_ >= 13)
 		{
-			case GL_INVALID_ENUM: errorstring = "invalid enum"; break;
-			case GL_INVALID_VALUE: errorstring = "invalid value"; break;
-			case GL_INVALID_OPERATION: errorstring = "invalid operation"; break;
-			case GL_STACK_OVERFLOW: errorstring = "stack overflow"; break;
-			case GL_STACK_UNDERFLOW: errorstring = "stack underflow"; break;
-			case GL_OUT_OF_MEMORY: errorstring = "out of memory"; break;
-			default: errorstring = "unknown type!";
+			glGetIntegerv(GL_MAX_TEXTURE_IMAGE_UNITS, &textureUnits);
+			enforce(textureUnits >= 2);
 		}
-		
-		writeln("OpenGL error (" ~ errorstring ~ ") occurred at" ~ source);
+	}
+
+	static void checkError(string source)
+	{
+		int errorcode = glGetError();
+		string errorstring;
+		if(errorcode)
+		{
+			switch(errorcode)
+			{
+				case GL_INVALID_ENUM: errorstring = "invalid enum"; break;
+				case GL_INVALID_VALUE: errorstring = "invalid value"; break;
+				case GL_INVALID_OPERATION: errorstring = "invalid operation"; break;
+				case GL_STACK_OVERFLOW: errorstring = "stack overflow"; break;
+				case GL_STACK_UNDERFLOW: errorstring = "stack underflow"; break;
+				case GL_OUT_OF_MEMORY: errorstring = "out of memory"; break;
+				default: errorstring = "unknown!";
+			}
+
+			throw new GLException("OpenGL error (" ~ errorstring ~ ") occurred at " ~ source);
+		}
 	}
 }
 
-void printFramebufferInfo()
+final class GLException : Exception
+{ import raider.tools.exception; mixin SimpleThis; }
+
+//Context just makes a GL context as quick as possible.
+private final class Context
 {
-	int auxbuffers, depthbits, stencilbits;
-	int[4] accumbits, colourbits;
-	int major, minor, rev;
-	GLboolean doublebuf, stereobuf;
-	
-	glGetIntegerv(GL_DEPTH_BITS, &depthbits);
-	glGetIntegerv(GL_STENCIL_BITS, &stencilbits);
-	glGetIntegerv(GL_AUX_BUFFERS, &auxbuffers);
-	
-	glGetIntegerv(GL_ACCUM_RED_BITS, &accumbits[0]);
-	glGetIntegerv(GL_ACCUM_GREEN_BITS, &accumbits[1]);
-	glGetIntegerv(GL_ACCUM_BLUE_BITS, &accumbits[2]);
-	glGetIntegerv(GL_ACCUM_ALPHA_BITS, &accumbits[3]);
-	
-	glGetIntegerv(GL_RED_BITS, &colourbits[0]);
-	glGetIntegerv(GL_GREEN_BITS, &colourbits[1]);
-	glGetIntegerv(GL_BLUE_BITS, &colourbits[2]);
-	glGetIntegerv(GL_ALPHA_BITS, &colourbits[3]);
-	
-	glGetBooleanv(GL_DOUBLEBUFFER, &doublebuf);
-	glGetBooleanv(GL_STEREO, &stereobuf);
-	
-	int accumbits_total = accumbits[0]+accumbits[1]+accumbits[2]+accumbits[3];
-	int colourbits_total = colourbits[0]+colourbits[1]+colourbits[2]+colourbits[3];
-	
-	writeln(glGetString(GL_VERSION));
-	writeln("Colour bits: ", colourbits_total);
-	writeln("Depth bits: ", depthbits);
-	writeln("Stencil bits: ", stencilbits);
-	writeln("Accum bits: ", accumbits_total);
-	writeln("Double buffered: ", doublebuf);
-	writeln("Stereo buffered: ", stereobuf);
-	writeln("Auxilliary buffers: ", auxbuffers);
+	version(Windows)
+	{
+		import raider.render.windowImpl;
+
+		HWND hwnd;
+		HDC hdc;
+		HGLRC hrc;
+
+		this()
+		{
+			WNDCLASS wc;
+			wc.lpfnWndProc = &DefWindowProcA;
+			wc.style = CS_OWNDC;
+			wc.hInstance = GetModuleHandleW(null);
+			wc.lpszClassName = "gl";
+			
+			RegisterClassW(&wc);
+
+			hwnd = CreateWindowA("gl", "", WS_POPUP | WS_DISABLED, 0,0,1,1, null, null, GetModuleHandleW(null), null);
+			_createContext(hwnd, hdc, hrc);
+			wglMakeCurrent(hdc, hrc);
+		}
+
+		~this()
+		{
+			wglMakeCurrent(null, null);
+			_destroyContext(hwnd, hdc, hrc);
+			DestroyWindow(hwnd);
+			UnregisterClassW("gl", GetModuleHandleW(null));
+		}
+	}
+
 }

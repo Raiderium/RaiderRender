@@ -1,56 +1,70 @@
 module raider.render.window;
 
-import derelict.opengl3.gl;
-
-import derelict.sfml2.window;
-import derelict.sfml2.system;
+import raider.render.gl;
 import raider.math.vec;
 import raider.tools.array;
 import raider.tools.reference;
+import raider.render.texture;
+import raider.render.windowImpl;
+
+mixin WindowModuleImpl;
 
 /**
- * A window for rendering in.
+ * A thing for stuff to happen in.
+ * 
+ * Provides an OpenGL context for drawing. 
  */
 final class Window
-{private:
-	sfWindow* sfwindow;
-	vec4 _viewport;
+{
+	/* Platform-specific junk.
+	 * Implementation details are prefixed with 'i_' */
+	mixin WindowImpl;
+
+private:
 	static P!Window _activeWindow;
-	bool _closeRequested;
+	vec4 _viewport;
+
+	//Call glViewport with the coordinates specified by _viewport.
+	void updateViewport()
+	{
+		bind;
+		uint x = cast(uint)(_viewport[0]*width); //USE CLIENT WIDTH. GetClientRect on Windows
+		uint y = cast(uint)(_viewport[1]*height);
+		uint w = cast(uint)((_viewport[2] - _viewport[0])*width);
+		uint h = cast(uint)((_viewport[3] - _viewport[1])*height);
+		glViewport(x, y, w, h); //TODO Confirm viewports are pixel-correct.
+	}
 
 public:
-	@property static P!Window activeWindow() { return _activeWindow; }
-	@property bool closeRequested() { return _closeRequested; }
 
 	/**
-	 * Give width 0 to use desktop dimensions.
+	 * Each thread has an active window, bound for rendering.
 	 */
-	this(uint width, uint height, string title = "", bool fullscreen = false)
+	@property static P!Window activeWindow() { return _activeWindow; }
+
+	/**
+	 * Constructor
+	 * 
+	 * Windows begin life in a disabled state, invisible
+	 * and unable to be interacted with. The user should
+	 * set enabled = true after configuring the window.
+	 */
+	this()
 	{
-		sfContextSettings cs = sfContextSettings(32, 0, 0, 2, 0);
 
-		sfVideoMode vm = (width == 0) ? 
-			sfVideoMode_getDesktopMode() : 
-			sfVideoMode(width, height, 32);
-
-		sfwindow = sfWindow_create(vm, cast(char*)title, 
-			fullscreen ? sfFullscreen : sfDefaultStyle, &cs);
-
-		if(!sfWindow_isOpen(sfwindow))
-			throw new Exception("Window failed to open.");
-
-		bind;
-
-		mouseVisible = true;
+		//Lazy DerelictGl.load();
+		i_ctor; bind;
+		//Lazy DerelictGL.reload();
 
 		//Add a model transform matrix to sit on top of the camera inverse matrix.
 		glMatrixMode(GL_MODELVIEW); glPushMatrix();
-
+		
 		glEnable(GL_TEXTURE_2D);
 		glEnable(GL_BLEND);
 		glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
-		glClearColor(0,0.05,0.1,255);
-		
+		glClearColor(0,0.05,0.1,1.0);
+		glDrawBuffer(GL_BACK);
+
 		glEnableClientState(GL_VERTEX_ARRAY);
 		glEnableClientState(GL_NORMAL_ARRAY);
 		glEnableClientState(GL_TEXTURE_COORD_ARRAY);
@@ -60,105 +74,137 @@ public:
 		
 		glEnable(GL_CULL_FACE);
 		glCullFace(GL_BACK);
+		glFrontFace(GL_CCW);
+
+		viewport = vec4(0, 0, 1, 1);
 	}
 
 	~this()
 	{
-		sfWindow_destroy(sfwindow);
+		if(_activeWindow == this)
+		{
+			i_bind(false);
+			_activeWindow = null;
+		}
+
+		i_dtor;
 	}
 
-	@property void viewport(vec4 value)
+	/**
+	 * The renderable region of the window.
+	 * 
+	 * The upper-left of the window is (0, 0). The lower-right is (1, 1).
+	 * The viewport is specified with a vec4, containing the upper-left
+	 * corner and then the lower-right. Once set, the viewport remains
+	 * proportional and correct even if the window is resized.
+	 */
+	@property void viewport(vec4 v)
 	{
-		assert(0.0 <= value[0] && value[0] < value[2] && value[2] <= 1.0);
-		assert(0.0 <= value[1] && value[1] < value[3] && value[3] <= 1.0);
-		bind;
-		uint vpX = cast(uint)(value[0]*width);
-		uint vpY = cast(uint)(value[1]*height);
-		uint vpWidth = cast(uint)((value[2] - value[0])*width);
-		uint vpHeight = cast(uint)((value[3] - value[1])*height);
-
-		glViewport(vpX, vpY, vpWidth, vpHeight);
+		assert(0.0 <= v[0] && v[0] < v[2] && v[2] <= 1.0);
+		assert(0.0 <= v[1] && v[1] < v[3] && v[3] <= 1.0);
+		_viewport = v;
+		updateViewport;
 	}
 
-	@property vec4 viewport()
-	{
-		return _viewport;
-	}
+	@property vec4 viewport() { return _viewport; }
 
 	@property double viewportAspect()
 	{
-		return (_viewport[2] - _viewport[0]) /
-			(_viewport[3] - _viewport[1]);
-	}
-
-	@property void title(string value) { sfWindow_setTitle(sfwindow, cast(char*)value); }
-	@property uint width() { return sfWindow_getSize(sfwindow).x; }
-	@property void width(uint w) { sfWindow_setSize(sfwindow, sfVector2u(w, height)); }
-	@property uint height() { return sfWindow_getSize(sfwindow).y; }
-	@property void height(uint h) { sfWindow_setSize(sfwindow, sfVector2u(h, width)); }
-	@property vec2u size()
-	{
-		sfVector2u sfv = sfWindow_getSize(sfwindow);
-		return vec2u(sfv.x, sfv.y);
-	}
-
-	@property void size(vec2u s)
-	{
-		sfWindow_setSize(sfwindow, sfVector2u(s[0], s[1]));
+		double x = _viewport[2] - _viewport[0];
+		double y = _viewport[3] - _viewport[1];
+		return y != 0.0 ? x / y : 1.0;
 	}
 
 	@property double aspect()
 	{
-		sfVector2u sfv = sfWindow_getSize(sfwindow);
-		return cast(double)sfv.x / cast(double)sfv.y;
+		vec2 s = vec2(size);
+		return s[1] != 0.0 ? s[0] / s[1] : 1.0;
 	}
 
-	@property vec2i mouse()
-	{
-		sfVector2i sfv = sfMouse_getPosition(sfwindow);
-		return vec2i(sfv.x, sfv.y);
-	}
+	enum Size { Minimum, Restore, Maximum }
+	enum Style { Windowed, Borderless, Exclusive }
 
-	@property void mouse(vec2i m)
-	{
-		sfMouse_setPosition(sfVector2i(m[0], m[1]), sfwindow);
-	}
+	/**
+	 * Window title text.
+	 */
+	@property void title(string value) { i_title = value; }
+	@property string title() { return i_title; }
 
-	@property void mouseVisible(bool v)
-	{ sfWindow_setMouseCursorVisible(sfwindow, v); }
+	/**
+	 * Window icon.
+	 * 
+	 * The texture will be resized as necessary.
+	 */
+	@property void icon(P!Texture value) { i_icon = value; }
 
+	/**
+	 * Window dimensions. 
+	 * 
+	 * Set a vec2u value to specify exact width and height. If
+	 * the window style is Exclusive, this will jump to the 
+	 * closest available exclusive fullscreen video mode.
+	 * 
+	 * Set a Size value to minimise, maximise or restore the
+	 * window. If the window is Exclusive, maximise has no
+	 * effect.
+	 */
+	@property void size(vec2u value) { i_size = value; }
+	@property void size(Size value) { i_size = value; }
+	@property vec2u size() { return i_size; }
+
+	@property uint width() { return i_size[0]; }
+	@property void width(uint value) { i_size = vec2u(value, i_size[1]); }
+	@property uint height() { return i_size[1]; }
+	@property void height(uint value) { i_size = vec2u(i_size[0], value); }
+
+	@property void position(vec2i value) { i_position = value; }
+
+	/**
+	 * Window style.
+	 * 
+	 * Style.Windowed has native decorations including borders 
+	 * and minimise / maximise / close buttons.
+	 * 
+	 * Style.Borderless is a plain square of pixels.
+	 * 
+	 * Style.Exclusive commandeers the entire screen, stretching 
+	 * the output to fit and allowing gamma adjustment.
+	 */
+	@property void style(Style value) { i_style = value; }
+
+	/**
+	 * Window enabled state.
+	 * 
+	 * If disabled, a window doesn't exist on the screen and receives no input.
+	 * No other method will enable or disable the window.
+	 * Other methods can modify the window while it is disabled.
+	 */
+	@property void enabled(bool value) { i_enabled = value; }
+	@property void mouseVisible(bool value) { i_mouseVisible = value; }
+
+	/**
+	 * Bind the window for rendering.
+	 */
 	void bind()
 	{
 		if(_activeWindow != this)
 		{
-			if(sfWindow_setActive(sfwindow, true))
-				_activeWindow = P!Window(this);
-			else
-				throw new Exception("Couldn't bind window.");
+			i_bind(true);
+			_activeWindow = P!Window(this);
 		}
 	}
 
-	void swapBuffers()
-	{
-		bind;
-		sfWindow_display(sfwindow);
-	}
+	/**
+	 * Process the native event queue.
+	 * 
+	 * Event-based inputs are inappropriate for a system that should
+	 * always completely consume these inputs between every frame of
+	 * user interaction, and often contains multiple agents that use
+	 * the same input information at arbitrary times. So, we convert
+	 * the events into a big lump of state. Even buffered text input
+	 * can be dealt with this way, and it avoids annoying callbacks.
+	 */
+	void processEvents() { i_processEvents(); }
 
-	void processEvents()
-	{
-		bind;
-		sfEvent event;
-		while(sfWindow_pollEvent(sfwindow, &event))
-		{
-			switch(event.type)
-			{
-				case sfEvtClosed:
-					_closeRequested = true;
-					break;
-				
-				default:
-					break;
-			}
-		}
-	}
+	void swapBuffers() { i_swapBuffers(); }
 }

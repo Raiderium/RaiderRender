@@ -7,11 +7,12 @@
     "authors": ["Aiden Sibley"],
     "targetName": "RaiderRender",
     "targetPath": "lib",
+	"libs": ["gdi32"],
 
 	"dependencies": { 
 		"derelict-gl3": ">0.0.0",
-		"derelict-sfml2": ">0.0.0",
 		"raider-tools": ">0.0.0",
-		"raider-math": ">0.0.0"
+		"raider-math": ">0.0.0",
+		"imageformats": ">0.0.0"
 	}
 }
