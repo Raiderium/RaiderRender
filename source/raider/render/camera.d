@@ -1,6 +1,6 @@
 module raider.render.camera;
 
-import derelict.opengl3.gl;
+import raider.render.gl;
 import std.math;
 import raider.math;
 
@@ -64,11 +64,18 @@ public:
 		}
 	}
 
+	/**
+	 * Test a bounding sphere against the camera frustum.
+	 * 
+	 * Returns true if any part of the sphere is visible.
+	 */
 	bool test(vec3 position, double radius)
 	{
+		//This checks if any part of the sphere occupies space in front of the camera.
 		vec3 pos = position - this.position;
 		double dot = pos.dot(orientation[2]);
 		return (dot - radius) < 0.0;
-		//TODO Proper six-plane frustum intersect check
+		//TODO Six-plane frustum intersection check.
+		//For each model, start by checking the plane that excluded it in the previous frame.
 	}
 }

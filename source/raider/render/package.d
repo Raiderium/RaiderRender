@@ -6,6 +6,7 @@ public
 	import raider.render.artist;
 	import raider.render.camera;
 	import raider.render.gl;
+	import raider.render.input;
 	import raider.render.light;
 	import raider.render.material;
 	import raider.render.mesh;

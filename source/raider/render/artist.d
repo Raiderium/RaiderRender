@@ -1,14 +1,11 @@
 ﻿module raider.render.artist;
 
-import derelict.opengl3.gl;
 import raider.tools.reference;
 import raider.tools.array;
-import raider.render.mesh;
-import raider.render.model;
-import raider.render.camera;
-import raider.render.window;
-import raider.render.light;
-import raider.render.material;
+import raider.render;
+
+import raider.math;
+
 import core.sync.mutex;
 import std.bitmanip;
 
@@ -27,6 +24,7 @@ class Artist
 private:
 	Array!ModelProxy models;
 	Array!LightProxy lights;
+	Array!Material materials; //Build this list from matching model materials
 	Mutex mutex;
 
 	struct ModelProxy
@@ -34,6 +32,7 @@ private:
 		this(Model model)
 		{
 			this.model = P!Model(model);
+			z = model.z;
 		}
 
 		P!Model model;
@@ -61,14 +60,30 @@ private:
 
 public:
 
-	bool add(Model model)
+	this()
 	{
-		if(camera.test(model.position, model.radius))
+		mutex = new Mutex();
+	}
+
+	/**
+	 * Add a model to be drawn.
+	 * 
+	 * Compares the camera frustum to a model's bounding
+	 * sphere and returns the result. If true, the model
+	 * is scheduled for render, and the user should make
+	 * expensive updates to its appearance.
+	 * 
+	 * Pass force=true to skip the test.
+	 * 
+	 * This method is thread-safe.
+	 */
+	bool add(Model model, bool force = false)
+	{
+		if(force || camera.test(model.position, model.radius))
 		{
-			ModelProxy proxy;
-			proxy.model = P!Model(model);
-			proxy.z = model.z;
+			ModelProxy proxy = ModelProxy(model);
 			synchronized(mutex) models.add(proxy);
+			//Use concurrent bag.
 			return true;
 		}
 		else return false;
@@ -76,32 +91,30 @@ public:
 
 	void draw()
 	{
+		glClear(GL_COLOR_BUFFER_BIT|GL_DEPTH_BUFFER_BIT);
+
 		synchronized(mutex)
 		{
+			window.bind;
+			camera.bind(window.viewportAspect);
+			
 			for(uint x = 0; x < models.size; x++)
 			{
-				Model model = models[x].model;
-				Mesh mesh = model._mesh;
+				auto model = models[x].model;
+				auto mesh = model._mesh;
+				Camera.modelTransform = model.transform;
 
-				uint rangeMin = 0;
-				foreach(uint y, uint rangeMax; mesh.materialRanges)
+				foreach(i, page; mesh.pages)
 				{
-					if(y < model.materials.length) model.materials[y].bind();
-					uint f0 = rangeMin;
-					uint f1 = rangeMax;
-					assert(f0 < f1 && f0 < mesh.tris.length && f1 <= mesh.tris.length);
-					TriFace[] f = mesh.tris[f0..f1];
+					if(i < model.materials.length)
+						model.materials[i].bind;
 
 					glInterleavedArrays(GL_T2F_N3F_V3F, Vertex.sizeof, mesh.verts.ptr);
-					glDrawElements(GL_TRIANGLES, f.length*3, GL_UNSIGNED_INT, f.ptr);
-
-					rangeMin = rangeMax;
+					glDrawElements(GL_TRIANGLES, page.tris.length*3, GL_UNSIGNED_INT, page.tris.ptr);
 				}
 			}
 		}
-
 		window.swapBuffers;
-		glClear(GL_COLOR_BUFFER_BIT|GL_DEPTH_BUFFER_BIT);
 	}
 }
 

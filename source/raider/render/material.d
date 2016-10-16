@@ -33,6 +33,7 @@ class Material
 	vec4f ambient;
 	vec4f diffuse;
 	vec4f specular;
+	vec4f emission;
 	double sharpness;
 
 	R!Shader shader;
@@ -43,6 +44,7 @@ class Material
 		ambient = vec4f(0,0,0,1);
 		diffuse = vec4f(1,1,1,1);
 		specular = vec4f(1,1,1,1);
+		emission = vec4f(0,0,0,1);
 		sharpness = 10.0;
 	}
 
@@ -55,6 +57,7 @@ class Material
 		glMaterialfv(GL_FRONT, GL_AMBIENT, ambient.ptr);
 		glMaterialfv(GL_FRONT, GL_DIFFUSE, diffuse.ptr);
 		glMaterialfv(GL_FRONT, GL_SPECULAR, specular.ptr);
+		glMaterialfv(GL_FRONT, GL_EMISSION, emission.ptr);
 		glMaterialf(GL_FRONT,  GL_SHININESS, sharpness);
 	}
 }

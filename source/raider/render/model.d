@@ -25,27 +25,22 @@ public:
 	double radius;
 
 	uint z;
-	vec4 colour;
 	Array!(R!Material) materials;
 	int lod;
-	bool dirty; //LoD has changed (also general purpose dirty flag).
-	
-	this(R!Mesh mesh, double radius)
+	bool dirty; //LoD or time has changed
+	bool lit; //participates in lighting (sets GL_LIGHTING true for this model)
+
+	this(R!Mesh mesh, double margin = 0.0)
 	{
-		//_mesh = mesh;
-		this.radius = radius;
+		_mesh = mesh;
+		this.radius = mesh.radius + margin;
 	}
 	
 	~this()
 	{
 		
 	}
-	
-	//@property void radius(double value) { _radius = value; }
-	//@property vec3 position() { return _position; }
-	//@property void position(vec3 value) { _position = value; }
-	//@property mat3 orientation() { return _orientation; }
-	//@property void orientation(mat3 value) { _orientation = value; }
+
 	@property mat4 transform() { return mat4(orientation, position); }
 	
 	

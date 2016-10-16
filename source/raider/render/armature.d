@@ -59,6 +59,29 @@ void deform(R!Mesh mesh, R!Mesh dest, R!Armature armature, R!Binding binding)
 	//assert(dest.groups is binding.groups);
 
 	//Do deformation!
+
+	/* 
+	 * The purpose of the system stack is to facilitate function
+	 * calls. Its depth is sufficient for function calls. It is
+	 * optimised for function calls. It is used for function calls.
+	 * 
+	 * It is not for algorithm semantics.
+	 * 
+	 * If it were possible to create stacks on the heap - to control
+	 * the memory as an object, to be able to hold it in your hand,
+	 * catch exceptions from it, configure it and provide guarantees
+	 * regarding it - if the recursion happened in userspace, as a 
+	 * tool with syntactic sugar - or if the language automatically
+	 * allocated on the heap and was tuned to support recursion - 
+	 * then I would call it the Right Solution. 
+	 * 
+	 * But recursion with the system stack feels fraudulent, to me.
+	 * It has no robustness. It shouts 'look what I can do'. It's a
+	 * forkbomb. It's a hack. It's like saying, 'the system has a
+	 * while loop here. I will use that instead of making my own'
+	 * or 'the system has a chunk of memory here. I will use that
+	 * instead of making my own' or 'the system has a stack here...'
+	 */
 }
 
 //void deform(R!Armature armature, R!Armature dest, animation stuff)
