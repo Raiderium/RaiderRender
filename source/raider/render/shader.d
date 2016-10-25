@@ -5,6 +5,8 @@ import raider.render.texture;
 
 /**
  * A combined fragment and vertex program.
+ * 
+ * TODO Investigate the strategy used by dglsl.
  */
 class Shader
 {private:

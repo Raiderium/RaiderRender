@@ -34,6 +34,7 @@ public:
 	{
 		_mesh = mesh;
 		this.radius = mesh.radius + margin;
+		orientation = mat3.identity;
 	}
 	
 	~this()

@@ -18,7 +18,7 @@ import std.bitmanip;
  */
 class Artist
 {public:
-	R!Window window;
+	R!Window window; //TODO Replace with a 'Surface' to support off-screen drawing.
 	R!Camera camera;
 
 private:
@@ -63,6 +63,8 @@ public:
 	this()
 	{
 		mutex = new Mutex();
+		models.cached = true;
+		lights.cached = true;
 	}
 
 	/**
@@ -115,6 +117,12 @@ public:
 			}
 		}
 		window.swapBuffers;
+	}
+
+	void clear()
+	{
+		models.clear;
+		lights.clear;
 	}
 }
 

@@ -240,6 +240,10 @@ mixin template WindowsModuleImpl()
 				//note for posterity: at this point, wnd.hwnd is uninitialised
 				// (eventProc being invoked within CreateWindow)
 				return 0;
+			
+			case WM_CLOSE:
+				//TODO set 'close requested' thing or summink
+				return 0;
 
 			case WM_DESTROY:
 				try { _destroyContext(wnd.hwnd, wnd.hdc, wnd.hrc); }
