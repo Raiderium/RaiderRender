@@ -22,8 +22,8 @@ struct BoneTransform
  */
 class Armature
 {
-	R!(Array!Bone) bones;
-	R!(Array!BoneTransform) transforms;
+	//R!(Array!Bone) bones;
+	//R!(Array!BoneTransform) transforms;
 
 	this()
 	{
@@ -38,11 +38,12 @@ class Armature
 
 class Binding
 {
-	R!(Array!Bone) bones;
-	R!(Array!Group) groups;
-	Array!uint links;
+	//R!(Array!Bone) bones;
+	//R!(Array!Group) groups;
+	//Array!uint links;
 }
 
+/*
 R!Binding bind(R!(Array!Bone) bones, R!(Array!Group) groups)
 {
 	R!Binding binding = New!Binding();
@@ -50,7 +51,7 @@ R!Binding bind(R!(Array!Bone) bones, R!(Array!Group) groups)
 	binding.groups = groups;
 
 	return binding;
-}
+}*/
 
 void deform(R!Mesh mesh, R!Mesh dest, R!Armature armature, R!Binding binding)
 {
