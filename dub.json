@@ -1,7 +1,7 @@
 {
     "name": "raider-render",
     "version": "0.0.1",
-    "description": "A small 3d graphics system in D.",
+    "description": "A small 3d graphics system.",
     "homepage": "https://github.com/Raiderium/RaiderRender",
     "license": "MIT",
     "authors": ["Aiden Sibley"],
