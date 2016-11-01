@@ -24,7 +24,7 @@ class Artist
 private:
 	Array!ModelProxy models;
 	Array!LightProxy lights;
-	Array!Material materials; //Build this list from matching model materials
+	//Array!Material materials; //Build this list from matching model materials
 	Mutex mutex;
 
 	struct ModelProxy
@@ -57,6 +57,7 @@ private:
 			uint, "", 26));
 		}
 	}
+
 
 public:
 
@@ -93,8 +94,6 @@ public:
 
 	void draw()
 	{
-		glClear(GL_COLOR_BUFFER_BIT|GL_DEPTH_BUFFER_BIT);
-
 		synchronized(mutex)
 		{
 			window.bind;
@@ -116,7 +115,6 @@ public:
 				}
 			}
 		}
-		window.swapBuffers;
 	}
 
 	void clear()
