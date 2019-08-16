@@ -20,7 +20,7 @@ struct BoneTransform
 /**
  * A hierarchy of named transformations.
  */
-class Armature
+@RC class Armature
 {
 	//R!(Array!Bone) bones;
 	//R!(Array!BoneTransform) transforms;
@@ -36,7 +36,7 @@ class Armature
 	}
 }
 
-class Binding
+@RC class Binding
 {
 	//R!(Array!Bone) bones;
 	//R!(Array!Group) groups;
@@ -61,21 +61,21 @@ void deform(R!Mesh mesh, R!Mesh dest, R!Armature armature, R!Binding binding)
 
 	//Do deformation!
 
-	/* 
+	/*
 	 * The purpose of the system stack is to facilitate function
 	 * calls. Its depth is sufficient for function calls. It is
 	 * optimised for function calls. It is used for function calls.
-	 * 
+	 *
 	 * It is not for algorithm semantics.
-	 * 
+	 *
 	 * If it were possible to create stacks on the heap - to control
 	 * the memory as an object, to be able to hold it in your hand,
 	 * catch exceptions from it, configure it and provide guarantees
-	 * regarding it - if the recursion happened in userspace, as a 
+	 * regarding it - if the recursion happened in userspace, as a
 	 * tool with syntactic sugar - or if the language automatically
-	 * allocated on the heap and was tuned to support recursion - 
-	 * then I would call it the Right Solution. 
-	 * 
+	 * allocated on the heap and was tuned to support recursion -
+	 * then I would call it the Right Solution.
+	 *
 	 * But recursion with the system stack feels fraudulent, to me.
 	 * It has no robustness. It shouts 'look what I can do'. It's a
 	 * forkbomb. It's a hack. It's like saying, 'the system has a
@@ -88,8 +88,8 @@ void deform(R!Mesh mesh, R!Mesh dest, R!Armature armature, R!Binding binding)
 //void deform(R!Armature armature, R!Armature dest, animation stuff)
 
 /* Miscellaneous ramblings
-When a bone transform is changed, a flag is set that indicates 
-children are invalid. Getting pose transform requires recursion 
+When a bone transform is changed, a flag is set that indicates
+children are invalid. Getting pose transform requires recursion
 into parents. Must find deepest flagged parent and recalculate.
 
 How to armature:
@@ -101,4 +101,3 @@ How to armature:
 6. Deform poseable armature with animations.
 7. Deform poseable mesh with armature and binding.
 */
-

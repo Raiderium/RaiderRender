@@ -1,18 +1,40 @@
 module raider.render.texture;
 
-import raider.render.gl;
-import raider.tools;
+import raider.tools.array;
+import raider.tools.packable : Packable;
+import raider.tools.stream : Stream;
+import raider.tools.reference;
+import std.conv : to;
+import raider.render.gl : gl, GLuint, GLVersion, glGenTextures, glBindTexture, glActiveTexture, glTexImage2D, glDeleteTextures, 
+	GL_MAX_COMBINED_TEXTURE_IMAGE_UNITS, GL_TEXTURE_2D, GL_TEXTURE0, GL_RGBA, GL_UNSIGNED_BYTE;
+
+final class TextureException : Exception
+{ import raider.tools.exception; mixin SimpleThis; }
+
+alias EX = TextureException;
+
 
 /**
  * Electronic tapestry.
  * 
- * An RGBA 32bpp bitmap.
+ * An RGBA 32bpp texture.
  */
-class Texture : Packable
+@RC class Texture : Packable
 {private:
 	uint _width;
 	uint _height;
 	GLuint _id;
+	Array!Pixel _data; //Textures in RAM are supported but not the primary focus of this class
+
+	// Generates a GL texture if not present, and uploads anything in _data.
+	void upload()
+	{
+		assert(_width && _height);
+		assert(_data.size == _width*_height);
+		if(!_id) glGenTextures(1, &_id);
+		bind;
+		glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, _width, _height, 0, GL_RGBA, GL_UNSIGNED_BYTE, _data.ptr);
+	}
 
 	void release()
 	{
@@ -40,6 +62,10 @@ public:
 	 * are aware of multiple units (multitexturing, GLSL, etc).
 	 * 
 	 * If unsupported, binds to non-zero units will do nothing.
+	 * 
+	 * TODO Just bite this bullet and REQUIRE a certain level.
+	 * Do NOT try to go THIS FAR BACK with optional versions.
+	 * If you're going to depend on texture units, depend on them.
 	 */
 	void bind(uint textureUnit = 0)
 	{
@@ -58,33 +84,31 @@ public:
 		glBindTexture(GL_TEXTURE_2D, 0);
 	}
 
-	import imageformats;
-
-	override void pack(P!Stream s) const
+	override void pack(Stream s) const
 	{
+		//How can this specify what format to use?
+		//R!FileStream f = New!FileStream("eco_prefilter.ppm", Stream.Mode.Write);	
+		//f.write("P6 702 425 255\n");
+		//foreach(p; pixels) { f.write(p.r); f.write(p.g); f.write(p.b); }
 
+		//This appears to be a deficiency in packable.
+		//Structs can pass arguments, but the interface cannot..
+		//Perhaps we simply store the arguments in the texture.
+		//That WOULD make sense. There are no questions about HOW to pack an item.
+		//It's just implicit in the state. And upon reading, the format would
+		//be stored in the same variable.
+		//A class is its own context.
+
+		//R!FileStream f = New!FileStream("line.ppm", Stream.Mode.Write);	
+		//f.write("P6 702 425 255\n");
+		//foreach(p; pixels) f.write(p.rgb);
 	}
 
-	override void unpack(P!Stream s)
+	override void unpack(Stream s)
 	{
-		/* HACK
-		 * imageformats' memory loading requires the file to be fully loaded first.
-		 * Also, its format detection requires peeking.
-		 * This is incompatible with RE, where streams don't seek or peek.
-		 * 
-		 * Sooo. Let's do some naughty casts for now.
-		 * This will support files and archives, but not network streams.
-		 */
-		R!FileStream fs = cast(R!FileStream)s;
-		if(fs)
-		{
-			ubyte[] bytes = new ubyte[cast(uint)fs.size];
-			fs.readBytes(bytes);
-			IFImage im = read_image_from_mem(bytes, 4);
-			import std.experimental.logger;
-			log(im.w, " ", im.h);
-		}
-
+		import raider.render.webp : load;
+		_data = load(s, _width, _height);
+		upload;
 
 		/* Type detection for future reference:
 		 * BMP magic 2 bytes ['B', 'M']
@@ -92,6 +116,16 @@ public:
 		 * JPEG magic 2 bytes [0xff, 0xd8]
 		 */
 	}
+}
 
-	override uint estimatePack() { return 0; }
+union Pixel
+{
+	uint v; struct { ubyte r, g, b, a; } 
+
+	this(ubyte r, ubyte g, ubyte b, ubyte a) { this.r = r; this.g = g; this.b = b; this.a = a; }
+	this(uint v) { this.v = v; }
+
+	@property ubyte[3] rgb() const { return [r, g, b]; }
+	void opOpAssign(string op)(in Pixel o) { mixin("r"~op~"=o.r; g"~op~"=o.g; b"~op~"=o.b; a"~op~"=o.a;"); }
+	string toString() { return "["~to!string(r)~" "~to!string(g)~" "~to!string(b)~" "~to!string(a)~"]"; }
 }

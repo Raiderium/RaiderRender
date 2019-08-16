@@ -28,16 +28,16 @@ struct WindowState
 
 struct Input
 {private:
-	P!Window window;
+	Window window;
 	Map!(string, Adapter) map;
 
-	struct Adapter 
+	struct Adapter
 	{
 		Code code;
 	}
 
 public:
-	this(P!Window window) { this.window = window; }
+	this(Window window) { this.window = window; }
 
 
 	enum Code
@@ -45,39 +45,39 @@ public:
 		//Letters
 		A, B, C, D, E, F, G, H, I, J, K, L, M,
 		N, O, P, Q, R, S, T, U, V, W, X, Y, Z,
-		
+
 		//Number line
-		N0, N1, N2, N3, N4, N5, N6, N7, N8, N9, 
-		
+		N0, N1, N2, N3, N4, N5, N6, N7, N8, N9,
+
 		//Numpad
 		P0, P1, P2, P3, P4, P5, P6, P7, P8, P9,
-		
-		F1, F2, F3, F4, F5, F6, F7, F8, 
+
+		F1, F2, F3, F4, F5, F6, F7, F8,
 		F9, F10, F11, F12, F13, F14, F15,
-		
+
 		Left, Right, Up, Down, Space,
-		
+
 		RShift, LShift, RAlt, LAlt, RCtrl, LCtrl,
 		RSys, LSys, Tab, CapsLock, Tilde, Escape,
-		
-		Dash, Equals, Backspace, 
-		LBracket, RBracket, Backslash, 
-		Semicolon, Quote, Enter, 
+
+		Dash, Equals, Backspace,
+		LBracket, RBracket, Backslash,
+		Semicolon, Quote, Enter,
 		Comma, Period, Slash,
-		
+
 		Home, End, Delete, PageUp, PageDown,
 		Insert, Plus, Minus, Multiply, Divide,
-		
+
 		//Mouse
 		//Coords in pixels relative to window top-left
-		LMB, RMB, MMB, 
+		LMB, RMB, MMB,
 		MWH, MWV, MX, MY,
-		
+
 		//Window
 		Minimize, Maximise, Close,
 		Width, Height, Focus
 	}
-	
+
 	alias Code this;
 }
 

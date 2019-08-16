@@ -9,26 +9,26 @@ import raider.tools.reference;
 
 /**
  * Controls the colour of rasterized pixels.
- * 
- * On limited hardware, the fixed function pipeline is 
- * used. This means standard Ambient-Diffuse-Specular 
- * shading, with a single texture blended in according 
+ *
+ * On limited hardware, the fixed function pipeline is
+ * used. This means standard Ambient-Diffuse-Specular
+ * shading, with a single texture blended in according
  * to various settings. Only the first texture in the
  * texture stack will be used. In future, multitexturing
  * may be available, but it is not a priority.
- * 
+ *
  * If shaders are available, a supershader replaces
  * fixed function and replicates it per-pixel. More
  * textures can be accessed and used in more ways.
- * 
+ *
  * However, this supershader only does a few things.
  * If a custom shader is linked, the developer has
  * much more control.
- * 
- * Z sorting is available for transparency, and the depth 
+ *
+ * Z sorting is available for transparency, and the depth
  * write mode can be manipulated as desired.
  */
-class Material
+@RC class Material
 {
 	vec4f ambient;
 	vec4f diffuse;

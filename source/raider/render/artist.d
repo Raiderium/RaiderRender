@@ -2,7 +2,12 @@
 
 import raider.tools.reference;
 import raider.tools.array;
-import raider.render;
+import raider.render.window;
+import raider.render.camera;
+import raider.render.model;
+import raider.render.light;
+import raider.render.mesh;
+import raider.render.gl;
 
 import raider.math;
 
@@ -11,12 +16,12 @@ import std.bitmanip;
 
 /**
  * Draws models.
- * 
- * The artist collects models and lights to draw, does a 
+ *
+ * The artist collects models and lights to draw, does a
  * frustum check, generates a lighting list, sorts the
  * models, then draws the scene to a window.
  */
-class Artist
+@RC class Artist
 {public:
 	R!Window window; //TODO Replace with a 'Surface' to support off-screen drawing.
 	R!Camera camera;
@@ -31,11 +36,11 @@ private:
 	{
 		this(Model model)
 		{
-			this.model = P!Model(model);
+			this.model = model;
 			z = model.z;
 		}
 
-		P!Model model;
+		Model model;
 		union
 		{
 			uint flags = 0;
@@ -48,7 +53,7 @@ private:
 
 	struct LightProxy
 	{
-		P!Light light;
+		Light light;
 		union
 		{
 			uint flags = 0;
@@ -64,28 +69,27 @@ public:
 	this()
 	{
 		mutex = new Mutex();
-		models.cached = true;
-		lights.cached = true;
+		models.ratchet = true;
+		lights.ratchet = true;
 	}
 
 	/**
 	 * Add a model to be drawn.
-	 * 
+	 *
 	 * Compares the camera frustum to a model's bounding
 	 * sphere and returns the result. If true, the model
 	 * is scheduled for render, and the user should make
 	 * expensive updates to its appearance.
-	 * 
+	 *
 	 * Pass force=true to skip the test.
-	 * 
+	 *
 	 * This method is thread-safe.
 	 */
 	bool add(Model model, bool force = false)
 	{
 		if(force || camera.test(model.position, model.radius))
 		{
-			ModelProxy proxy = ModelProxy(model);
-			synchronized(mutex) models.add(proxy);
+			synchronized(mutex) models.add(ModelProxy(model));
 			//Use concurrent bag.
 			return true;
 		}
@@ -98,7 +102,7 @@ public:
 		{
 			window.bind;
 			camera.bind(window.viewportAspect);
-			
+
 			for(uint x = 0; x < models.size; x++)
 			{
 				auto model = models[x].model;
@@ -124,20 +128,20 @@ public:
 	}
 }
 
-/* 
- * 
+/*
+ *
  * For cameras
  *   Clear draw list
  *   Test frustum against world
  *     At entity spaces, switch entity parity (if unswitched)
  *     At models, set LOD (dirty = true if old value is different, and always if time has changed) and add to draw list
- * 
+ *
  *   Set draw list minimum capacity to current size
  *   (Occasionally allow it to reduce?)
- * 
+ *
  *   For entities
  *     Pose switched entities
- *   
+ *
  *   Find 8 most influencing lights per model
  */
 

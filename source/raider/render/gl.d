@@ -2,10 +2,9 @@
 module raider.render.gl;
 
 import raider.tools.reference;
-import std.exception;
+import std.exception : enforce;
 
 public import derelict.opengl3.gl;
-import std.stdio;
 
 __gshared GL gl;
 
@@ -77,7 +76,7 @@ final class GLException : Exception
 { import raider.tools.exception; mixin SimpleThis; }
 
 //Context just makes a GL context as quick as possible.
-private final class Context
+@RC private final class Context
 {
 	version(Windows)
 	{

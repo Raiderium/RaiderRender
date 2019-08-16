@@ -1,0 +1,17 @@
+name "raider-render"
+version "0.0.1"
+description "A small 3D graphics system."
+homepage "https://github.com/Raiderium/RaiderRender"
+license "MIT"
+authors "Aiden Sibley"
+
+targetName "RaiderRender"
+targetPath "lib"
+libs "gdi32"
+
+dependency "derelict-gl3" version=">0.0.0"
+dependency "raider-math" version=">0.0.0"
+dependency "raider-tools" version=">0.0.0"
+
+
+

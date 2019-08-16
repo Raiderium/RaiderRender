@@ -14,14 +14,14 @@ mixin WindowModuleImpl;
  * 
  * Provides an OpenGL context for drawing. 
  */
-final class Window
+@RC final class Window
 {
 	/* Platform-specific junk.
 	 * Implementation details are prefixed with 'i_' */
 	mixin WindowImpl;
 
 private:
-	static P!Window _activeWindow;
+	static Window _activeWindow;
 	vec4 _viewport;
 
 	//Call glViewport with the coordinates specified by _viewport.
@@ -40,7 +40,7 @@ public:
 	/**
 	 * Each thread has an active window, bound for rendering.
 	 */
-	@property static P!Window activeWindow() { return _activeWindow; }
+	@property static Window activeWindow() { return _activeWindow; }
 
 	/**
 	 * Constructor
@@ -135,7 +135,7 @@ public:
 	 * 
 	 * The texture will be resized as necessary.
 	 */
-	@property void icon(P!Texture value) { i_icon = value; }
+	@property void icon(Texture value) { i_icon = value; }
 
 	/**
 	 * Window dimensions. 
@@ -190,7 +190,7 @@ public:
 		if(_activeWindow != this)
 		{
 			i_bind(true);
-			_activeWindow = P!Window(this);
+			_activeWindow = this;
 		}
 	}
 
@@ -207,4 +207,8 @@ public:
 	void processEvents() { i_processEvents(); }
 
 	void swapBuffers() { i_swapBuffers(); }
+
+	private bool _sync;
+	@property bool sync() { return _sync; }
+	@property void sync(bool value) { i_swapInterval(value); _sync = value; }
 }

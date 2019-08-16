@@ -3,11 +3,12 @@ module raider.render.camera;
 import raider.render.gl;
 import std.math;
 import raider.math;
+import raider.tools.reference;
 
 /*
  * Invisible floating eye.
  */
-final class Camera
+@RC final class Camera
 {public:
 	vec3 position;              /// Position in world space.
 	mat3 orientation;           /// Orientation in world space. Camera points along -Z.
@@ -34,6 +35,7 @@ public:
 		glMatrixMode(GL_MODELVIEW);
 		glPopMatrix(); glPushMatrix(); //Copy the inverse camera matrix
 		glMultMatrixd(value.ptr); //Multiply by transform
+		//TODO Do this manually.
 	}
 
 	void bind(double viewportAspect)
@@ -60,13 +62,18 @@ public:
 		}
 		else
 		{
+			glMatrixMode(GL_PROJECTION);
+			glLoadIdentity();
+			glOrtho(-1,1,-1,1,near, far);
 			//TODO Orthographic projection matrix setup
+			//Also, avoid glFrustum, build projection manually.
+			//This is necessary for GL 3.x and up.
 		}
 	}
 
 	/**
 	 * Test a bounding sphere against the camera frustum.
-	 * 
+	 *
 	 * Returns true if any part of the sphere is visible.
 	 */
 	bool test(vec3 position, double radius)

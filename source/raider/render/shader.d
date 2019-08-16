@@ -1,6 +1,7 @@
 module raider.render.shader;
 
 import derelict.opengl3.gl;
+import raider.tools.reference;
 import raider.render.texture;
 
 /**
@@ -8,7 +9,7 @@ import raider.render.texture;
  * 
  * TODO Investigate the strategy used by dglsl.
  */
-class Shader
+@RC class Shader
 {private:
 	GLuint _program;
 

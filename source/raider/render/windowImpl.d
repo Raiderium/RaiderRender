@@ -1,9 +1,13 @@
 module raider.render.windowImpl;
 
-package:
+package: //The contents of this module are visible only to other modules in raider-render.
 
-import raider.math.vec;
+import raider.math.vec : vec2u, vec2i;
 import raider.tools.reference;
+
+final class WindowException : Exception
+{ import raider.tools.exception; mixin SimpleThis; }
+
 
 mixin template WindowImpl()
 {
@@ -50,6 +54,7 @@ version(Windows)
 		PFD_DRAW_TO_WINDOW, PFD_SUPPORT_OPENGL, PFD_DOUBLEBUFFER,
 		PFD_TYPE_RGBA, PFD_MAIN_PLANE, PIXELFORMATDESCRIPTOR;
 	import derelict.opengl3.wgl;
+	import derelict.opengl3.wglext;
 	import std.utf;
 
 	void _createContext(HWND hwnd, ref HDC hdc, ref HGLRC hrc)
@@ -92,13 +97,13 @@ mixin template WindowsImpl()
 	HDC hdc;
 	HGLRC hrc;
 
-	static P!Window eventProcContext; //For passing context to the window procedure
+	static Window eventProcContext; //For passing context to the window procedure
 	static Exception eventProcException; //For returning an exception thrown within eventProc
 	static bool eventProcQuittable; //
 
 	void i_ctor()
 	{
-		eventProcContext = P!Window(this);
+		eventProcContext = this;
 
 		hwnd = CreateWindowA("raider-render", "", WS_POPUP | WS_DISABLED,
 			200,200,400,400, null, null, GetModuleHandleW(null), null);
@@ -113,7 +118,7 @@ mixin template WindowsImpl()
 
 	void i_dtor()
 	{
-		eventProcContext = P!Window(this);
+		eventProcContext = this;
 		DestroyWindow(hwnd);
 		eventProcContext = null;
 	}
@@ -125,7 +130,7 @@ public:
 
 	@property void i_size(vec2u value)
 	{
-		eventProcContext = P!Window(this);
+		eventProcContext = this;
 		SetWindowPos(hwnd, null, 0, 0, value[0], value[1], SWP_NOMOVE | SWP_NOZORDER);
 		updateViewport;
 		eventProcContext = null;
@@ -142,14 +147,14 @@ public:
 
 	@property void i_position(vec2i value)
 	{
-		eventProcContext = P!Window(this);
+		eventProcContext = this;
 		SetWindowPos(hwnd, null, value[0], value[1], 0, 0, SWP_NOSIZE | SWP_NOZORDER);
 		eventProcContext = null;
 	}
 
 	@property void i_enabled(bool value)
 	{
-		eventProcContext = P!Window(this);
+		eventProcContext = this;
 		EnableWindow(hwnd, value);
 		ShowWindow(hwnd, value ? SW_SHOW : SW_HIDE);
 		eventProcContext = null;
@@ -157,7 +162,7 @@ public:
 
 	@property void i_style(Style value)
 	{
-		eventProcContext = P!Window(this);
+		eventProcContext = this;
 		int style = GetWindowLongPtr(hwnd, GWL_STYLE);
 		style &= ~(WS_OVERLAPPEDWINDOW | WS_POPUP);
 		if(value == Style.Windowed) style |= WS_OVERLAPPEDWINDOW;
@@ -169,7 +174,7 @@ public:
 		eventProcContext = null;
 	}
 
-	@property void i_icon(P!Texture value)
+	@property void i_icon(Texture value)
 	{
 
 	}
@@ -196,7 +201,7 @@ public:
 
 	void i_processEvents()
 	{
-		eventProcContext = P!Window(this);
+		eventProcContext = this;
 
 		MSG msg;
 		while(PeekMessageA(&msg, hwnd, 0, 0, PM_REMOVE))
@@ -218,13 +223,19 @@ public:
 		if(!SwapBuffers(hdc))
 			throw new WindowException("Buffer swap failed.");
 	}
+
+	void i_swapInterval(bool value)
+	{
+		if(!wglSwapIntervalEXT(value ? 1 : 0))
+			assert(0, "Vertical sync override detected.");
+
+	}
 }
 
 mixin template WindowsModuleImpl()
 {
 	extern(Windows) LRESULT eventProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam) nothrow
 	{
-
 		//Somewhat more severe than an exception, but asserts don't work here :I
 		if(!Window.eventProcContext)
 		{
@@ -232,7 +243,7 @@ mixin template WindowsModuleImpl()
 			return DefWindowProcA(hwnd, msg, wParam, lParam);
 		}
 
-		P!Window wnd = Window.eventProcContext;
+		Window wnd = Window.eventProcContext;
 
 		switch(msg)
 		{
@@ -276,7 +287,3 @@ mixin template WindowsModuleImpl()
 		UnregisterClassW("raider-render", GetModuleHandleW(null));
 	}
 }
-
-
-final class WindowException : Exception
-{ import raider.tools.exception; mixin SimpleThis; }

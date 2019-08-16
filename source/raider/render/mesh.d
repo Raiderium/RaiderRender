@@ -22,6 +22,23 @@ struct Vertex
 	vec3f nor;
 	vec3f pos;
 
+	/* Observe what the Just Cause 2 team did regarding
+	 * vertex attribute compression for sending to the GL.
+	 * 
+	 * Fillrate optimisation via 'particle trimming' gave them
+	 * a >2x speedup on cloud and particle rendering.
+	 * 
+	 * Billboard culling in batched rendering- throw behind far plane.
+	 * 
+	 * ..they make reference to the 'Order your graphics draw calls around!' paper.
+	 * I'm in love with this company.
+	 * No wonder JC2 was so fast.
+	 * 
+	 * OBSERVE how they implemented their state sorting. That's VITAL.
+	 * 
+	 * Their 'tombola compiler' sounds hilarious.
+	 */
+
 	union
 	{
 		mixin(bitfields!( //reminder: top to bottom is LSB to MSB
@@ -34,14 +51,14 @@ struct Vertex
 		static assert(Vertex.sizeof == 36); //Paranoia
 	}
 
-	void pack(P!Stream s) const
+	void pack(Stream s) const
 	{
 		s.write(flags);
 		if(!part) s.write(pos);
 		if(!uvPart) s.write(uv);
 	}
 
-	void unpack(P!Stream s)
+	void unpack(Stream s)
 	{
 		s.read(flags);
 		if(!part) s.read(pos);
@@ -86,14 +103,14 @@ struct Face
 		return result;
 	}
 
-	void pack(P!Stream s, bool ushort_i)
+	void pack(Stream s, bool ushort_i)
 	{
 		foreach(vi; &verts)
 			if(ushort_i) s.write!ushort(cast(ushort)vi);
 			else s.write!uint(vi);
 	}
 
-	void unpack(P!Stream s, bool ushort_i)
+	void unpack(Stream s, bool ushort_i)
 	{
 		foreach(i, ref tri; tris)
 		{
@@ -112,7 +129,7 @@ struct Face
 }
 
 //Section describes a contiguous range of triangulated polygons of a particular size.
-struct Section
+struct Section //So you have a section for triangles, a section for quads, and so on.
 {
 	uint type;
 	Tri[] tris;
@@ -138,17 +155,22 @@ struct Section
 		return result;
 	}
 
-	void pack(P!Stream s)
+	void pack(Stream s)
 	{
 		s.write!uint(type);
 		s.write!uint(tris.length / type);
 	}
 
 	//A section is only unpacked in the context of a mesh and cursor into the tri-list.
-	void unpack(P!Stream s, P!Mesh mesh, ref uint cursor)
+	void unpack(Stream s, Mesh mesh, ref uint cursor)
 	{
 		//Indices are stored as unsigned shorts if the largest index fits in ushort.max.
 		bool ushort_i = mesh.verts.length <= ushort.max;
+
+		//TODO Use varint encoding.
+		//Additionally, for varints with the same number of bytes as the largest index,
+		//cut off all unused bits. 
+		//16/8/2019: No, try golomb-rice coding first, similar probability distribution but potentially superior
 
 		s.read(type);
 		uint facecount = s.read!uint;
@@ -161,17 +183,17 @@ struct Section
 }
 
 //Page describes a contiguous range of sections (called a sub-mesh by other applications)
-struct Page
+struct Page //Each sub-mesh can have a different material assigned to it for rendering.
 {
 	Tri[] tris;
 	Section[] sections;
 
-	void pack(P!Stream s)
+	void pack(Stream s)
 	{
 		s.write!uint(sections.length);
 	}
 
-	void unpack(P!Stream s, P!Mesh mesh, ref uint cursor)
+	void unpack(Stream s, Mesh mesh, ref uint cursor)
 	{
 		uint sectioncount = s.read!uint;
 
@@ -197,11 +219,11 @@ struct Morph { string name; Array!Key keys; }
 /**
  * Latently visible floating triangles.
  */
-class Mesh : Packable
+@RC class Mesh : Packable
 {public:
 	Array!Vertex verts;
 	Array!Tri tris; //Triangulated renderable primitive faces.
-	Array!Section sections; //Faces grouped by number of vertices.
+	Array!Section sections; //Tris grouped into faces sorted by number of vertices.
 	Array!Page pages; //Sections grouped into submeshes.
 	Array!Group groups;
 	Array!Morph morphs;
@@ -256,6 +278,10 @@ class Mesh : Packable
 		 * aren't being inlined in debug builds with DMD.
 		 * Let's see how long this piece of garbage hangs 
 		 * around because I can't let go of preconceptions.
+		 * 
+		 * Instructions for how to move on with your life:
+		 * Profile an optimised release build, and consider
+		 * how much time is actually spent in this function.
 		 */
 		/*vec3f sum;
 		foreach(size_t x, ref Vertex v; verts)
@@ -372,7 +398,7 @@ class Mesh : Packable
 		return sqrt(d);
 	}
 
-	override void pack(P!Stream s) const
+	override void pack(Stream s) const
 	{
 		//s.write(verts);
 		//s.write(tris);
@@ -381,22 +407,26 @@ class Mesh : Packable
 		//s.write(ranges);
 	}
 
-	override void unpack(P!Stream s)
+	override void unpack(Stream s)
 	{
-		string header = s.read!(char[8]);
+		//TODO Use RIFF conventions.
+		string header = "BLAHBLAH"; s.read(header); //I can't see how immutable(char[]) is compatible with non-allocating s.read. 
 		if(header != "MESH0001")
 			throw new MeshException("Bad header. Expected MESH0001, found '" ~ header ~ "'");
 		//I don't really think a version number will ever be useful, it's just a precaution
 
 		s.read(verts);
 
+		import std.stdio;
+		writeln(verts.length);
+
 		tris.length = s.read!uint; //Tricount hint
 
 		uint cursor;
-		s.read(sections, P!Mesh(this), cursor);
+		s.read(sections, this, cursor);
 
 		cursor = 0;
-		s.read(pages, P!Mesh(this), cursor);
+		s.read(pages, this, cursor);
 
 		//Make data consistent
 		updateGeometricParts;
@@ -404,8 +434,6 @@ class Mesh : Packable
 		updateUVParts;
 		updateNormals;
 	}
-
-	override uint estimatePack() { return 0; }
 }
 
 final class MeshException : Exception
