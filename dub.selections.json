@@ -1,8 +1,6 @@
 {
 	"fileVersion": 1,
 	"versions": {
-		"derelict-gl3": "1.0.24",
-		"derelict-util": "2.1.0",
 		"raider-math": "0.0.1",
 		"raider-tools": "0.0.1"
 	}

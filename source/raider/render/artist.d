@@ -113,9 +113,12 @@ public:
 				{
 					if(i < model.materials.length)
 						model.materials[i].bind;
-
-					glInterleavedArrays(GL_T2F_N3F_V3F, Vertex.sizeof, mesh.verts.ptr);
+					glVertexPointer(3, GL_FLOAT, Vertex.sizeof, cast(void*)mesh.verts.ptr + Vertex.pos.offsetof);
+					glNormalPointer(GL_FLOAT, Vertex.sizeof, cast(void*)mesh.verts.ptr + Vertex.nor.offsetof);
+					glTexCoordPointer(2, GL_FLOAT, Vertex.sizeof, cast(void*)mesh.verts.ptr + Vertex.uv.offsetof);
+					//glInterleavedArrays(GL_T2F_N3F_V3F, Vertex.sizeof, mesh.verts.ptr); Deprecated
 					glDrawElements(GL_TRIANGLES, page.tris.length*3, GL_UNSIGNED_INT, page.tris.ptr);
+					//Weirdly, glDrawElements isn't deprecated, yet glVertexPointer etc is.
 				}
 			}
 		}

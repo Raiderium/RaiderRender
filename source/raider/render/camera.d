@@ -35,7 +35,7 @@ public:
 		glMatrixMode(GL_MODELVIEW);
 		glPopMatrix(); glPushMatrix(); //Copy the inverse camera matrix
 		glMultMatrixd(value.ptr); //Multiply by transform
-		//TODO Do this manually.
+		//TODO Do this manually. GL_MODELVIEW and related are all deprecated.
 	}
 
 	void bind(double viewportAspect)

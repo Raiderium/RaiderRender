@@ -1,7 +1,7 @@
 module raider.render.material;
 
-import derelict.opengl3.gl;
 import raider.math.vec;
+import raider.render.gl;
 import raider.render.shader;
 import raider.render.texture;
 import raider.tools.array;

@@ -1,17 +1,17 @@
 module raider.render.shader;
 
-import derelict.opengl3.gl;
+import raider.render.gl;
 import raider.tools.reference;
 import raider.render.texture;
 
 /**
  * A combined fragment and vertex program.
- * 
+ *
  * TODO Investigate the strategy used by dglsl.
  */
 @RC class Shader
 {private:
-	GLuint _program;
+	uint _program;
 
 public:
 	this()
@@ -26,60 +26,57 @@ public:
 
 	void compile(string fragSource = null, string vertSource = null)
 	{
-		if(supported)
+		release();
+
+		//TODO Default shaders
+		if(!fragSource)
+		{
+			//fragSource = defaultFragmentSource;
+		}
+
+		if(!vertSource)
+		{
+			//vertSource = defaultVertexSource;
+		}
+
+		//To pass inputs to a vertex shader in we use glVertexAttribPointer.
+
+		char[400] log;
+
+		//Create program
+		_program = glCreateProgram();
+		uint frag = glCreateShader(GL_FRAGMENT_SHADER);
+		uint vert = glCreateShader(GL_VERTEX_SHADER);
+
+		if(!_program || !frag || !vert)
 		{
 			release();
+			glDeleteShader(frag);
+			glDeleteShader(vert);
+			throw new Exception("Could not create shader.");
+		}
 
-			//TODO Default shaders
-			if(!fragSource)
-			{
-				//fragSource = defaultFragmentSource;
-			}
+		//Attach shaders
+		glAttachShader(_program, frag);
+		glAttachShader(_program, vert);
 
-			if(!vertSource)
-			{
-				//vertSource = defaultVertexSource;
-			}
+		//Compile
+		glShaderSource(frag, 1, cast(char**)fragSource.ptr, null);
+		glCompileShader(frag);
 
-			//To pass inputs to a vertex shader in we use glVertexAttribPointer.
+		int compiled = 0;
+		glGetShaderiv(frag, GL_COMPILE_STATUS, &compiled);
 
-			char[400] log;
-
-			//Create program
-			_program = glCreateProgram();
-			GLuint frag = glCreateShader(GL_FRAGMENT_SHADER);
-			GLuint vert = glCreateShader(GL_VERTEX_SHADER);
-
-			if(!_program || !frag || !vert)
-			{
-				release();
-				glDeleteShader(frag);
-				glDeleteShader(vert);
-				throw new Exception("Could not create shader.");
-			}
-
-			//Attach shaders
-			glAttachShader(_program, frag);
-			glAttachShader(_program, vert);
-
-			//Compile
-			glShaderSource(frag, 1, cast(char**)fragSource.ptr, null);
-			glCompileShader(frag);
-
-			int compiled = 0;
-			glGetShaderiv(frag, GL_COMPILE_STATUS, &compiled);
-
-			//Check for compile errors
-			if(!compiled)
-			{
-				glGetShaderInfoLog(frag, log.sizeof, null, log.ptr);
-			}
+		//Check for compile errors
+		if(!compiled)
+		{
+			glGetShaderInfoLog(frag, log.sizeof, null, log.ptr);
 		}
 	}
 
 	void release()
 	{
-		if(supported && compiled)
+		if(compiled)
 		{
 			glDeleteProgram(_program);
 			_program = 0;
@@ -88,22 +85,21 @@ public:
 
 	void bind()
 	{
-		if(supported && compiled) glUseProgram(_program);
+		if(compiled) glUseProgram(_program);
 	}
 
 	static void unbind()
 	{
-		if(supported) glUseProgram(0);
+		glUseProgram(0);
 	}
 
 	@property bool compiled() { return cast(bool)_program; }
-	@property GLuint program() { return _program; }
-	@property static bool supported() { return DerelictGL.loadedVersion >= GLVersion.GL20; }
+	@property uint program() { return _program; }
 
 	void uniform(T)(string name, T u)
 	{
 		//TODO Use a string-int map to avoid GetUniformLocation calls.
-		if(supported && compiled)
+		if(compiled)
 		{
 			glUseProgram(_program);
 			int l = glGetUniformLocation(_program, name);
@@ -128,7 +124,7 @@ public:
 
 	void sampler(string name, Texture texture, int textureUnit)
 	{
-		if(supported && compiled)
+		if(compiled)
 		{
 			glUseProgram(_program);
 

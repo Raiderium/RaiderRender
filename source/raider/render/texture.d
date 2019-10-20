@@ -5,25 +5,24 @@ import raider.tools.packable : Packable;
 import raider.tools.stream : Stream;
 import raider.tools.reference;
 import std.conv : to;
-import raider.render.gl : gl, GLuint, GLVersion, glGenTextures, glBindTexture, glActiveTexture, glTexImage2D, glDeleteTextures, 
-	GL_MAX_COMBINED_TEXTURE_IMAGE_UNITS, GL_TEXTURE_2D, GL_TEXTURE0, GL_RGBA, GL_UNSIGNED_BYTE;
+import raider.render.gl;
 
 final class TextureException : Exception
-{ import raider.tools.exception; mixin SimpleThis; }
+{ import raider.tools.exception : SimpleThis; mixin SimpleThis; }
 
 alias EX = TextureException;
 
 
 /**
  * Electronic tapestry.
- * 
+ *
  * An RGBA 32bpp texture.
  */
 @RC class Texture : Packable
 {private:
 	uint _width;
 	uint _height;
-	GLuint _id;
+	uint _id;
 	Array!Pixel _data; //Textures in RAM are supported but not the primary focus of this class
 
 	// Generates a GL texture if not present, and uploads anything in _data.
@@ -49,31 +48,29 @@ alias EX = TextureException;
 public:
 	@property uint width() { return _width; }
 	@property uint height() { return _height; }
-	@property GLuint id() { return _id; }
+	@property uint id() { return _id; }
 
 	this() { }
 	~this() { release; }
 
 	/**
 	 * Bind texture.
-	 * 
-	 * If gl version >=1.3, specifying a texture unit will bind to 
+	 *
+	 * If gl version >=1.3, specifying a texture unit will bind to
 	 * that unit, and it will become available in any systems that
 	 * are aware of multiple units (multitexturing, GLSL, etc).
-	 * 
+	 *
 	 * If unsupported, binds to non-zero units will do nothing.
-	 * 
+	 *
 	 * TODO Just bite this bullet and REQUIRE a certain level.
 	 * Do NOT try to go THIS FAR BACK with optional versions.
 	 * If you're going to depend on texture units, depend on them.
 	 */
 	void bind(uint textureUnit = 0)
 	{
-		if(gl.version_ >= GLVersion.GL13)
-		{
-			assert(textureUnit < GL_MAX_COMBINED_TEXTURE_IMAGE_UNITS);
-			glActiveTexture(GL_TEXTURE0 + textureUnit);
-		}
+		///if(gl.version_ >= GLVersion.GL13)
+		assert(textureUnit < GL_MAX_COMBINED_TEXTURE_IMAGE_UNITS);
+		glActiveTexture(GL_TEXTURE0 + textureUnit);
 		glBindTexture(GL_TEXTURE_2D, _id);
 		//glActiveTexture(GL_TEXTURE0); Set active texture back to something..?
 	}
@@ -87,7 +84,7 @@ public:
 	override void pack(Stream s) const
 	{
 		//How can this specify what format to use?
-		//R!FileStream f = New!FileStream("eco_prefilter.ppm", Stream.Mode.Write);	
+		//R!FileStream f = New!FileStream("eco_prefilter.ppm", Stream.Mode.Write);
 		//f.write("P6 702 425 255\n");
 		//foreach(p; pixels) { f.write(p.r); f.write(p.g); f.write(p.b); }
 
@@ -99,7 +96,7 @@ public:
 		//be stored in the same variable.
 		//A class is its own context.
 
-		//R!FileStream f = New!FileStream("line.ppm", Stream.Mode.Write);	
+		//R!FileStream f = New!FileStream("line.ppm", Stream.Mode.Write);
 		//f.write("P6 702 425 255\n");
 		//foreach(p; pixels) f.write(p.rgb);
 	}
@@ -120,7 +117,7 @@ public:
 
 union Pixel
 {
-	uint v; struct { ubyte r, g, b, a; } 
+	uint v; struct { ubyte r, g, b, a; }
 
 	this(ubyte r, ubyte g, ubyte b, ubyte a) { this.r = r; this.g = g; this.b = b; this.a = a; }
 	this(uint v) { this.v = v; }

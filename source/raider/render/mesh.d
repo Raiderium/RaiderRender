@@ -3,7 +3,6 @@ module raider.render.mesh;
 import std.math : sqrt;
 import raider.math.vec;
 import std.bitmanip;
-import raider.render.gl;
 import raider.render.material;
 import raider.tools.array;
 import raider.tools.packable;
