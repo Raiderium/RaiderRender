@@ -10,9 +10,9 @@ import raider.tools.stream;
 import raider.tools.reference;
 
 /**
- * An eight-dimensional point occupying three distinct euclidean 
+ * An eight-dimensional point occupying three distinct euclidean
  * geometries with an unknown number of conjunct clones.
- * 
+ *
  * It's complicated.
  */
 struct Vertex
@@ -23,18 +23,18 @@ struct Vertex
 
 	/* Observe what the Just Cause 2 team did regarding
 	 * vertex attribute compression for sending to the GL.
-	 * 
+	 *
 	 * Fillrate optimisation via 'particle trimming' gave them
 	 * a >2x speedup on cloud and particle rendering.
-	 * 
+	 *
 	 * Billboard culling in batched rendering- throw behind far plane.
-	 * 
+	 *
 	 * ..they make reference to the 'Order your graphics draw calls around!' paper.
 	 * I'm in love with this company.
 	 * No wonder JC2 was so fast.
-	 * 
+	 *
 	 * OBSERVE how they implemented their state sorting. That's VITAL.
-	 * 
+	 *
 	 * Their 'tombola compiler' sounds hilarious.
 	 */
 
@@ -72,11 +72,11 @@ struct Tri { uint a, b, c; }
 
 /**
  * A polygon linking an arbitrary number of vertices.
- * 
+ *
  * This struct is transient (not stored anywhere).
  */
 struct Face
-{ 
+{
 	Tri[] tris; //Triangles comprising this face.
 
 	//Yield vertex indices in winding order.
@@ -168,7 +168,7 @@ struct Section //So you have a section for triangles, a section for quads, and s
 
 		//TODO Use varint encoding.
 		//Additionally, for varints with the same number of bytes as the largest index,
-		//cut off all unused bits. 
+		//cut off all unused bits.
 		//16/8/2019: No, try golomb-rice coding first, similar probability distribution but potentially superior
 
 		s.read(type);
@@ -226,8 +226,8 @@ struct Morph { string name; Array!Key keys; }
 	Array!Page pages; //Sections grouped into submeshes.
 	Array!Group groups;
 	Array!Morph morphs;
-	
-	public int faces(int delegate(ref Face face) dg)
+
+	int faces(int delegate(ref Face face) dg)
 	{
 		int result;
 		foreach(page; pages)
@@ -254,7 +254,7 @@ struct Morph { string name; Array!Key keys; }
 			vec3f n = y.cross(x);
 			n.normalize();
 			//Would be nice to profile Q_rsqrt for normalization.
-			
+
 			verts[t.a].nor += n;
 			verts[t.b].nor += n;
 			verts[t.c].nor += n;
@@ -273,11 +273,11 @@ struct Morph { string name; Array!Key keys; }
 		/* The following normalization algorithm looks horrible.
 		 * But, it's about 7 percent faster on my computer
 		 * (perhaps on account of having a witty comment).
-		 * Or maybe it's because the foreach delegates above 
+		 * Or maybe it's because the foreach delegates above
 		 * aren't being inlined in debug builds with DMD.
-		 * Let's see how long this piece of garbage hangs 
+		 * Let's see how long this piece of garbage hangs
 		 * around because I can't let go of preconceptions.
-		 * 
+		 *
 		 * Instructions for how to move on with your life:
 		 * Profile an optimised release build, and consider
 		 * how much time is actually spent in this function.
@@ -289,7 +289,7 @@ struct Morph { string name; Array!Key keys; }
 			else
 			{
 				sum = v.nor;
-				
+
 				//Like an engineer driving through the post-apocalypse, we look ahead for parts
 				uint y = x+1;
 				while(y < verts.length && verts[y].part)
@@ -327,7 +327,7 @@ struct Morph { string name; Array!Key keys; }
 	{
 		int result;
 		uint v0, v1;
-		
+
 		while(v1 < verts.length)
 		{
 			v1++;
@@ -409,15 +409,15 @@ struct Morph { string name; Array!Key keys; }
 	override void unpack(Stream s)
 	{
 		//TODO Use RIFF conventions.
-		string header = "BLAHBLAH"; s.read(header); //I can't see how immutable(char[]) is compatible with non-allocating s.read. 
+		string header = "BLAHBLAH"; s.read(header); //I can't see how immutable(char[]) is compatible with non-allocating s.read.
 		if(header != "MESH0001")
 			throw new MeshException("Bad header. Expected MESH0001, found '" ~ header ~ "'");
 		//I don't really think a version number will ever be useful, it's just a precaution
 
 		s.read(verts);
 
-		import std.stdio;
-		writeln(verts.length);
+		//import std.stdio;
+		//writeln(verts.length);
 
 		tris.length = s.read!uint; //Tricount hint
 
@@ -436,117 +436,117 @@ struct Morph { string name; Array!Key keys; }
 }
 
 final class MeshException : Exception
-{ import raider.tools.exception; mixin SimpleThis; }
+{ import raider.tools.exception : SimpleThis; mixin SimpleThis; }
 
 /*
  * Regarding geometrically defined vertices...
  *
- * The OpenGL defines a vertex as a vector of attributes, including 
- * position, normal, color and position in texture space. If any of 
+ * The OpenGL defines a vertex as a vector of attributes, including
+ * position, normal, color and position in texture space. If any of
  * these attributes change, it is considered a different vertex.
- * 
+ *
  * However, it is often desireable to define a vertex by
- * position only (a 'geometric' vertex) and attach attributes 
+ * position only (a 'geometric' vertex) and attach attributes
  * to the faces connecting them instead.
- * 
- * An example is texture mapping, where neighbouring faces can 
- * have different UV coordinates at the same vertex. 
- * 
- * To submit geometric vertices, it is necessary to create and 
+ *
+ * An example is texture mapping, where neighbouring faces can
+ * have different UV coordinates at the same vertex.
+ *
+ * To submit geometric vertices, it is necessary to create and
  * track additional vertices with the same position. I refer to
  * these as 'partial vertices' or 'parts'.
- * 
- * To keep track of them, they are lumped together in the 
+ *
+ * To keep track of them, they are lumped together in the
  * vertex stream. The 'part' flag is used to indicate a vertex
  * inherits its position from the last unflagged vertex.
- * 
+ *
  * The 'norPart' flag behaves the same, indicating the vertex
  * is part of a contiguous group of vertices contributing to and
  * sharing the same normal vector. These are always sub-groups
  * within the group of geometric parts.
- * 
+ *
  * The 'uvPart' flag behaves similarly, but the groups are not
- * necessarily contiguous. Instead, a 5-bit 'uvGroup' field 
+ * necessarily contiguous. Instead, a 5-bit 'uvGroup' field
  * describes which group a part belongs to. This makes uv parts
- * more expensive to reassemble, but normal groups are used more 
+ * more expensive to reassemble, but normal groups are used more
  * intensively, so they take priority.
- * 
+ *
  * Algorithms that modify shared vertex attributes can process the first
  * part in the lump, cache the result, and copy it to inheriting parts.
  * Non-inheriting parts can be processed without updating the cache.
- * 
+ *
  * Algorithms must be written with an understanding of the part flags.
  */
 
 /*
  * Regarding UV coordinates...
- * 
+ *
  * The purpose of the UV coordinate pair is to provide a definitive
  * unwrapping of the mesh to a 2D space, nothing more. Thus there
  * is only one coordinate pair per vertex.
- * 
+ *
  * Effects that traditionally require additional UV coords must be
  * implemented by other means.
  */
 
 /* 13-9-2016
  * Regarding triangulation of faces (aka polygons)...
- * 
+ *
  * GL_QUADS (the constant responsible for passing quad primitives
  * to OpenGL) has been deprecated as of 3.x. This improves the API
  * because it restricts it to dealing with unambiguous triangles.
- * 
+ *
  * Rest in pieces, GL_QUADS.
- * 
+ *
  * On the faces of things, this makes our job a little harder.
- * Instead of four verts and four indices, we have to send four 
+ * Instead of four verts and four indices, we have to send four
  * verts and six indices, and maintain this triangulation when
  * the mesh changes. New questions of performance arise.
- * 
- * Because 'normal' normal calculations find a single normal per 
- * face and add it to all verts (as here and in Blender), the 
- * look of a triangulated non-planar face changes slightly if 
+ *
+ * Because 'normal' normal calculations find a single normal per
+ * face and add it to all verts (as here and in Blender), the
+ * look of a triangulated non-planar face changes slightly if
  * we treat the triangles as individual faces. This is simpler
- * in code, but subtly breaks WYSIWYG with Blender. We need to 
+ * in code, but subtly breaks WYSIWYG with Blender. We need to
  * choose which approach to take.
- * 
+ *
  * Both will be profiled; if finding one normal for each face
  * has reasonably similar performance to finding one normal for
  * each triangle, we'll prefer the former.
- * 
+ *
  * I note my driver implements quad triangulation equivalent to
  * Blender's 'Fixed' method - splitting across vertices 1 and 3.
  * We have an opportunity to improve on this by splitting across
  * the shortest diagonal (the simplest dynamic triangulation) to
  * get better-looking deformations and concave quads.
- * 
+ *
  * As for the question of supporting quads, they're indispensable.
  * Supporting the general case of n-gons is a happy bonus.
  */
 
 /* 20-9-2016
  * Regarding faces..
- * 
+ *
  * You will notice the Face struct isn't actually stored anywhere.
  * It's a transient struct, created by the section.faces delegate.
- * 
+ *
  * Note that face has the face.verts delegate, which must yield
  * the vertex indices of the face's edge loop, in winding order.
  * However, this loop isn't stored anywhere either!
- * 
+ *
  * Tris belonging to the same face are grouped together in the
  * tri stream. mesh.sections remembers where they start and end.
- * These grouped triangles are stored in a way that allows fast 
+ * These grouped triangles are stored in a way that allows fast
  * reconstruction of the edge loop.
- * 
+ *
  * 1. Tris are rotated so the first edge shared with the loop
  * (in winding order) comes first.
  * 2. Tris are sorted according to their order of appearance
  * in the loop. (Interior tris come last.)
- * 
- * By comparing one tri to the next, it is trivial to identify the 
+ *
+ * By comparing one tri to the next, it is trivial to identify the
  * interior edges and follow the exterior loop.
- * 
+ *
  * No constraint is placed on where the edge loop starts. The tris
  * with exterior edges can be shuffled around as long as they stay
  * in winding order.

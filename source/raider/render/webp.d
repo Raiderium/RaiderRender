@@ -5,21 +5,20 @@ import raider.tools.array;
 import raider.tools.huffman : Tree;
 import raider.tools.stream;
 import raider.tools.reference;
-import raider.tools.memory : move;
 import raider.render.texture;
 import std.conv : to, hex = hexString;
 
 final class WEBPException : Exception
-{ import raider.tools.exception; mixin SimpleThis; }
+{ import raider.tools.exception : SimpleThis; mixin SimpleThis; }
 
 alias EX = WEBPException;
 
 /* This is the WebP Lossless (VP8L) subformat.
- * 
+ *
  * The decoder is a Fiber that yields after reading the header and then at regular intervals.
  * If a destination texture is not provided, it terminates after reading the header.
  */
-
+ 
 //Ceiling of value / 1<<bits.
 uint bs(uint value, uint bits) { return (value + (1 << bits) - 1) >> bits; }
 //Called block_xsize by the spec, which is a misnomer - it's the number of blocks, not their size (which is 1<<bits).
@@ -43,7 +42,7 @@ Array!Pixel load(Stream s, ref uint _width, ref uint _height)
 
 	//Fiber.yield; //check if inside fiber, or else this faults
 
-	Transform[4] transforms; 
+	Transform[4] transforms;
 	uint tnum; //The number of transforms (and a convenient insertion index)
 	ubyte[4] seen; //Only one of each type of transform is allowed (in any order).
 	uint pbits; //Pixel packing bits. Colour indexing, if present, changes this to 1, 2 or 3.
@@ -78,7 +77,7 @@ Array!Pixel load(Stream s, ref uint _width, ref uint _height)
 	return pixels;
 }
 
-void defilter(uint unfiltered_width, uint h, Pixel[] data, Transform[] transforms, ref uint pbits) 
+void defilter(uint unfiltered_width, uint h, Pixel[] data, Transform[] transforms, ref uint pbits)
 {
 	if(unfiltered_width * h == 0) return;
 
@@ -86,23 +85,23 @@ void defilter(uint unfiltered_width, uint h, Pixel[] data, Transform[] transform
 		uint w = bs(unfiltered_width, pbits); //When pbits is 0, w is the true width of the image.
 		Pixel[] o = data[$-w*h..$]; //Until pixels are unpacked, w is the packed width.
 
-		if(t.type == TransformType.Colour) { 
+		if(t.type == TransformType.Colour) {
 			uint mask = (1 << t.bits) - 1, tpr = bs(w, t.bits);
 			for(uint y, p; y < h; y++) { auto c = &t.data[(y >> t.bits) * tpr];
-				for(uint x; x < w; x++) { if(x && (x&mask) == 0) c++; 
+				for(uint x; x < w; x++) { if(x && (x&mask) == 0) c++;
 					ubyte r = o[p].r, g = o[p].g, b = o[p].b;
 					r += cast(byte)c.b * cast(byte)g >> 5;
 					b += cast(byte)c.g * cast(byte)g >> 5;
 					b += cast(byte)c.r * cast(byte)r >> 5;
 					o[p].r = r; o[p].b = b; p++; } } }
-		
+
 		else if(t.type == TransformType.ColourIndexing) {
 			uint xmask = (1 << pbits) - 1, vmask = (1 << (8 >> pbits)) - 1, bpps = 3-pbits;
-			for(uint y, p, l; y < h; y++, l += w) 
-				for(uint x; x < unfiltered_width; x++) 
+			for(uint y, p, l; y < h; y++, l += w)
+				for(uint x; x < unfiltered_width; x++)
 					data[p++] = t.data[o[l + (x>>pbits)].g >> ((x&xmask) << bpps) & vmask];
 			pbits = 0; }
-		
+
 		else if(t.type == TransformType.Predictor) {
 			uint mask = (1 << t.bits) - 1, tpr = bs(w, t.bits), p = 1;
 			o[0].a += 0xFF; while(p < w) o[p] += o[p++-1]; //First row has fixed modes 0111..111
@@ -137,7 +136,7 @@ void defilter(uint unfiltered_width, uint h, Pixel[] data, Transform[] transform
 					} o[p++] += predictor; } } }
 
 		else if(t.type == TransformType.SubtractGreen)
-			foreach(ref p; o) { p.r += p.g; p.b += p.g; } } 
+		foreach(ref p; o) { p.r += p.g; p.b += p.g; } }
 }
 
 auto abs(int a) { return a < 0 ? -a : a; }
@@ -173,13 +172,13 @@ Array!Pixel readPixels(uint w, uint h, bool meta, uint pbits, Stream s)
 	//If pixels are packed, we store the smaller image at the end of the output.
 	if(meta) w = bs(w, pbits);
 	auto o = output[$-w*h..$];
-	
+
 	//Colour cache
 	uint cbits, cshift; Array!Pixel cache; //Cache bits, cache shift, and the cache itself
-	if(s.readb!bool) { cbits = s.readb!uint(4); 
+	if(s.readb!bool) { cbits = s.readb!uint(4);
 		if(cbits < 1 || 11 < cbits) throw new EX("Bad colour cache size bits");
 		cshift = 32 - cbits; cache.size = 1 << cbits; }
-	
+
 	//Huffman groups
 	uint hbits; Array!Pixel hpix; //Huffman bits (meta-huffman tile size), entropy image
 	auto groups = readHuffgroups(w, h, cbits, meta, hbits, hpix, s); //Fills hbits and hpix if meta == true
@@ -193,16 +192,16 @@ Array!Pixel readPixels(uint w, uint h, bool meta, uint pbits, Stream s)
 		if(hbits && (((x&mask) == 0) || p-p0 != 1)) group = &groups[hpix[tpr*(y >> hbits) + (x>>hbits)].v];
 
 		if(cbits) //Update cache
-			foreach(rgba; o[p0..p]) {
-				uint argb = rgba.r << 16 | rgba.g << 8 | rgba.b | rgba.a << 24;
-				cache[(argb*0x1E35A7BD) >> cshift] = cast(Pixel)argb; }
+		foreach(rgba; o[p0..p]) {
+			uint argb = rgba.r << 16 | rgba.g << 8 | rgba.b | rgba.a << 24;
+			cache[(argb*0x1E35A7BD) >> cshift] = cast(Pixel)argb; }
 
 		p0 = p; auto green = (*group)[0].next(s);
 
 		if(green < 256) { //Literal
 			o[p++].v =  (*group)[1].next(s) | green<<8 | (*group)[2].next(s)<<16 | (*group)[3].next(s)<<24;
 			if(++x == w) { x = 0; y++; } }
-		
+
 		else if(green < 280) { //Back reference
 			uint prefix(uint sy) { return sy < 4 ? sy + 1 : (((2+(sy&1)) << ((sy-2)>>1)) + s.readb!uint((sy-2)>>1) + 1); }
 			uint l = prefix(green - 256); //Number of copied pixels
@@ -212,17 +211,17 @@ Array!Pixel readPixels(uint w, uint h, bool meta, uint pbits, Stream s)
 			if(o.length < p+l || p<d) throw new EX("Bad back reference");
 			foreach(i; p..p+l) o[i] = o[i-d]; //Copy previous pixels
 			p += l; x += l; while(x >= w) { x -= w; y++; } }
-			
+
 		else { //Colour cache lookup
 			if(!cbits) throw new EX("Cache used when not initialised");
 			if(green - 280 > cache.size) throw new EX("Bad colour cache reference");
 			Pixel argb = cache[green - 280];
 			o[p++] = Pixel(argb.b, argb.g, argb.r, argb.a);
-			if(++x == w) { x = 0; y++; } } 
+			if(++x == w) { x = 0; y++; } }
 	} return output;
 }
 
-Array!Group readHuffgroups(uint w, uint h, uint cbits, bool meta, ref uint hbits, ref Array!Pixel hpix, Stream s) 
+Array!Group readHuffgroups(uint w, uint h, uint cbits, bool meta, ref uint hbits, ref Array!Pixel hpix, Stream s)
 {
 	ushort ngroup; //Number of meta huffman codes
 	if(meta) { //If meta, pixel data is storing actual RGBA pixels, which can use meta huffman codes
@@ -230,9 +229,9 @@ Array!Group readHuffgroups(uint w, uint h, uint cbits, bool meta, ref uint hbits
 			hbits = s.readb!uint(3) + 2; //Otherwise, image uses only one group, and no entropy image.
 			hpix = readPixels(bs(w, hbits), bs(h, hbits), false, 0, s);
 			foreach(ref i; hpix) { i.v = i.r << 8 | i.g; if(ngroup < (i.v&0xFFFF)) ngroup = i.v&0xFFFF; } } }
-	
-	//The maximum memory consumption here is 2**16 * sizeof(Tree[5]), which is approximately 16mb on 32-bit. 
-	typeof(return) r; r.length = ngroup + 1; //TODO Confirm 1<<16 * sizeof(Tree[5]).. 
+
+	//The maximum memory consumption here is 2**16 * sizeof(Tree[5]), which is approximately 16mb on 32-bit.
+	typeof(return) r; r.length = ngroup + 1; //TODO Confirm 1<<16 * sizeof(Tree[5])..
 	foreach(ref g; r) {
 		readTree(g[0], 256 + 24 + (cbits ? 1 << cbits : 0), s); //Green
 		readTree(g[1], 256, s); //Red
@@ -241,11 +240,11 @@ Array!Group readHuffgroups(uint w, uint h, uint cbits, bool meta, ref uint hbits
 		readTree(g[4], 40, s); } //Distance
 	return r; }
 
-//Code length code order 
-immutable ubyte[19] clco = [17,18,0,1,2,3,4,5,16,6,7,8,9,10,11,12,13,14,15]; 
+//Code length code order
+immutable ubyte[19] clco = [17,18,0,1,2,3,4,5,16,6,7,8,9,10,11,12,13,14,15];
 immutable ubyte[3] extra = [2, 3, 7], offset = [3, 3, 11];
 
-/* https://dlang.org/spec/const.html: 'The initializer for a non-static local immutable 
+/* https://dlang.org/spec/const.html: 'The initializer for a non-static local immutable
  * declaration is evaluated at run time'. Do not put immutable arrays inside functions. */
 
 void readTree(ref Tree t, uint size, Stream s) {
@@ -258,12 +257,12 @@ void readTree(ref Tree t, uint size, Stream s) {
 		if(n == 2) s1 = s.readb!uint(8); // SPEC: 'The second code (if present), is always 8 bit long.'
 		if(s0 >= size || s1 >= size) throw new EX("Bad simple huffman tree");
 		l[s0] = 1; if(n == 2) l[s1] = 1; }
-		
+
 	else {
 		//Normal code length code (encodes this tree's code lengths with another, smaller tree)
 		uint n = s.readb!uint(4) + 4; if(n > 19) throw new EX("Bad code count");
 		ubyte[19] clcl; //Code length code lengths (lol)
-		foreach(i; 0..n) clcl[clco[i]] = s.readb!ubyte(3); //Read 'em 
+		foreach(i; 0..n) clcl[clco[i]] = s.readb!ubyte(3); //Read 'em
 
 		//Read code lengths
 		Tree clt; clt.build(clcl); //Build code length tree
@@ -271,7 +270,7 @@ void readTree(ref Tree t, uint size, Stream s) {
 		if(s.readb!bool) { //Use length
 			max_sym = s.readb!uint(s.readb!uint(3) * 2 + 2) + 2;
 			if(max_sym > size) throw new EX("Bad code lengths"); }
-		
+
 		uint prev = 8;
 		for(uint symbol; symbol < size;) {
 			if(!max_sym--) break;
@@ -282,29 +281,29 @@ void readTree(ref Tree t, uint size, Stream s) {
 				if(symbol + repeat > size) throw new EX("Bad code lengths");
 				ubyte copy = (cl == 16) ? cast(ubyte)prev : 0;
 				while(repeat--) l[symbol++] = copy; } } }
-	t.build(l[0..size]); 
-} 
+	t.build(l[0..size]);
+}
 
 /* Regarding WEBP Lossless (VP8L)..
- * 
+ *
  * VP8L is implemented with two core methods that intertwine aggressively.
  * Here, they are called readPixels and readHuffgroups.
- * 
+ *
  * So-called pixel encoding is better understood as a general compression method.
- * It uses huffman codes, requiring it to use readHuffgroups. The aggressive part 
+ * It uses huffman codes, requiring it to use readHuffgroups. The aggressive part
  * is that readHuffgroups also uses things called 'meta huffman codes'.
- * 
+ *
  * Which are encoded as pixels.
- * 
- * Fortunately, the nesting ends there. Only proper ARGB pixels can be compressed 
- * with meta huffman codes, so the codes happily never encode themselves. But this 
- * still results in readPixels and readHuffgroups calling each other in a style 
+ *
+ * Fortunately, the nesting ends there. Only proper ARGB pixels can be compressed
+ * with meta huffman codes, so the codes happily never encode themselves. But this
+ * still results in readPixels and readHuffgroups calling each other in a style
  * that at first glance appears to be recursive. The 'meta' argument prevents it.
- * 
+ *
  * Other fun details include reversible transformations of the ARGB pixels encoded
  * as pixels, and canonical huffman code lengths being encoded with huffman codes,
  * but that's situation normal for huffman coding.
- * 
+ *
  * I will stress that this format is very well designed, better than PNG in every
  * way that matters while still using the same basic principle (transform to improve
  * compressibility, encode with huffman). You just have to get over the mind bend.

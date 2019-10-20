@@ -1,4 +1,5 @@
 ﻿module raider.render.gfwx;
+
 import raider.render.texture;
 import raider.tools.array;
 
@@ -30,7 +31,7 @@ Array!Pixel gfwx(Stream s, ref uint _width, ref uint _height)
 	uint encoder = s.readb!uint(8);
 	//Intent not read
 
-	
+
 	//Fiber.yield;
 
 	//Signedness of output must match signedness indicated in file.. what.

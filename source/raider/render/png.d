@@ -26,8 +26,8 @@ private @RC class DechunkStream : Stream
 //STOP WORKING ON THIS AND WORK ON WEBP LOSSLESS
 
 
-	ubyte[64] buffer; //Buffer to reduce invocations of fiber.call() 
-	uint bp; //buffer pointer 
+	ubyte[64] buffer; //Buffer to reduce invocations of fiber.call()
+	uint bp; //buffer pointer
 
 	this(Stream stream)
 	{
@@ -48,7 +48,7 @@ private @RC class DechunkStream : Stream
 			//b = g.popFront;
 		}
 	}
-	
+
 	void dechunk()
 	{
 		uint size; ubyte[4] type; //Type and size of current chunk
@@ -59,16 +59,16 @@ private @RC class DechunkStream : Stream
 		{
 			//Read chunk size and type
 			s.read(size); s.read(type);
-			
+
 			foreach(b; type) //Chunk type must be ascii (65-90, 97-122)
 				if(b < 65 || (90 < b && b < 97) || 122 < b)
 					throw new PNGException("Bad non-ascii chunk type (" ~ type ~ ")");
-			
+
 			//Start CRC
 			CRC32 crc;
 			crc.add(type);
-			
-			if(state == 0) 
+
+			if(state == 0)
 			{
 				//IHDR chunk
 				if(type != "IHDR" || size != 13) //IHDR must come first
@@ -78,7 +78,7 @@ private @RC class DechunkStream : Stream
 				bp = 13; state = 1; continue;
 				//
 			}
-			
+
 			//state 1 - expecting IDAT, skipping unknowns
 			if(state == 1)
 			{
@@ -100,11 +100,11 @@ private @RC class DechunkStream : Stream
 					}
 				}
 			}
-			
+
 			//Check CRC
 			ubyte[4] crcb; s.read(crcb);
 			auto crc = bigEndianToNative!uint(crcb); //crc is MSB-first, big-endian, network byte order, etc.
-			
+
 			if(mcrc != crc)
 				throw new PNGException("CRC failed on " ~ type ~ " (read " ~ crc ~ ", calculated " ~ mcrc ~ ")");
 
@@ -113,13 +113,13 @@ private @RC class DechunkStream : Stream
 			{
 				state = 2;
 			}
-			
+
 			//Ancillary and PLTE chunks are skipped
 			if(type[0] & 32 || type == "PLTE") while(size--) update_crc(mcrc, s.read!ubyte());
-			
+
 			//Unrecognised critical chunks
 			if(!(type[0] & 32)) throw new PNGException("Unsupported critical chunk " ~ type);
-			
+
 			//Reserved chunks
 			if(type[3] & 32) throw new PNGException("Bad reserved bit");
 		}
@@ -127,9 +127,9 @@ private @RC class DechunkStream : Stream
 }
 
 /* This is the Portable Network Graphics format.
- * 
+ *
  * This encoder/decoder:
- * - Checks CRCs 
+ * - Checks CRCs
  * - Checks IHDR conforms to the PNG spec
  * - Complains about non-spec errors before complaining about features it doesn't support
  * - Correctly handles ancillary/private/non-copyable/reserved
@@ -157,7 +157,7 @@ void load(Texture texture, Stream stream)
 	s.read(width, height, bits, colour, compression, filter, interlace);
 
 	if(width == 0 || height == 0) throw new PNGException("Bad dimensions " ~ width ~ "x" ~ height);
-	if(width > 8192 || height > 8192) throw new PNGException("Unsupported dimensions (>8192) " ~ width ~ "x" ~ height); 
+	if(width > 8192 || height > 8192) throw new PNGException("Unsupported dimensions (>8192) " ~ width ~ "x" ~ height);
 	if(popcnt(bits) != 1 || bits > 16) throw new PNGException("Bad bit-depth (" ~ bits ~ ")");
 	if(colour > 6 || colour == 1 || colour == 5) throw new PNGException("Bad colour type (" ~ colour ~ ")");
 	if((colour == 2 || colour == 6) && bits < 8) throw new PNGException("Bad truecolour bit-depth (" ~ bits ~ ")");
@@ -165,11 +165,11 @@ void load(Texture texture, Stream stream)
 	if(colour == 3 && bits > 8) throw new PNGException("Bad indexed-colour bit depth (" ~ bits ~ ")");
 	if(colour == 3) throw new PNGException("Unsupported colour type (indexed)");
 	if(bits != 8) throw new PNGException("Unsupported bit-depth (" ~ bits ~ ")");
-	if(compression != 0) throw new PNGException("Bad compression method (" ~ compression ~ ")"); 
-	if(filter != 0) throw new PNGException("Bad filter method (" ~ filter ~ ")"); 
+	if(compression != 0) throw new PNGException("Bad compression method (" ~ compression ~ ")");
+	if(filter != 0) throw new PNGException("Bad filter method (" ~ filter ~ ")");
 	if(interlace > 1) throw new PNGException("Bad interlace method (" ~ interlace ~ ")");
 	if(interlace == 1) throw new PNGException("Unsupported interlace method (Adam7)");
-	
+
 	//update_crc(mcrc, width, height, bits, colour, compression, filter, interlace);
 	//state = 1;
 	//else if(state > 0) //mono-d plugin doesn't like else, period
@@ -180,7 +180,7 @@ void load(Texture texture, Stream stream)
 		{
 			state = 2;
 			//We must continue reading IDAT chunks (even zero-length) and concatenate them.
-			//We uncompress until a line is completed, then unfilter and upload it. 
+			//We uncompress until a line is completed, then unfilter and upload it.
 			//When a line is completed, we upload it.
 			//Let's assume for argument that the data is uncompressed
 			while(size--)

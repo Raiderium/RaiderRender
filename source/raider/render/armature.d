@@ -17,13 +17,27 @@ struct BoneTransform
 	mat4 pose; //Relative to armature root
 }
 
+@RC class Bones
+{
+	Array!Bone v;
+}
+
+@RC class BoneTransforms
+{
+	Array!BoneTransform v;
+}
+
+@RC class Groups
+{
+	Array!Group v;
+}
+
 /**
  * A hierarchy of named transformations.
  */
 @RC class Armature
 {
-	//R!(Array!Bone) bones;
-	//R!(Array!BoneTransform) transforms;
+	//R!BoneTransforms transforms;
 
 	this()
 	{
@@ -38,20 +52,20 @@ struct BoneTransform
 
 @RC class Binding
 {
-	//R!(Array!Bone) bones;
-	//R!(Array!Group) groups;
+	R!Bones bones;
+	R!Groups groups;
 	//Array!uint links;
 }
 
-/*
-R!Binding bind(R!(Array!Bone) bones, R!(Array!Group) groups)
+
+R!Binding bind(R!Bones bones, R!Groups groups)
 {
 	R!Binding binding = New!Binding();
 	binding.bones = bones;
 	binding.groups = groups;
 
 	return binding;
-}*/
+}
 
 void deform(R!Mesh mesh, R!Mesh dest, R!Armature armature, R!Binding binding)
 {
